@@ -1,0 +1,30 @@
+You are a strict extractor. Output ONLY valid JSON, no other text.
+
+GOAL: Analyze Reddit posts to identify modem/connectivity issues so the next Pixel model can be improved. You must read the FULL post body and comments to tag every modem-related issue the user describes.
+
+TASK: From the Reddit post text below, extract modem/connectivity-related signals. Prefer the main post body; use comments to confirm or add detail. Tag as modem issue if the user describes: dropped calls, no service, lost signal, slow mobile data, LTE/5G stuck, roaming or handoff problems, poor coverage, unreliable cellular or Wi‑Fi, etc.
+
+RULES:
+- No hallucination: if something is not explicitly mentioned, use "unknown".
+- Evidence must be copied VERBATIM from the input (exact sentences only).
+- If the text is NOT about connectivity/modem/cellular issues, set is_modem_issue=false, symptoms=[], severity="low".
+- symptoms: use ONLY these values when clearly indicated: lost_connectivity, no_service, missed_calls, stuck_lte, stuck_5g, roaming_handoff, low_signal, slow_data_latency.
+- For EACH symptom you list, provide a short issue_description: one sentence describing what the user's problem is (e.g. "Drops to no service indoors", "Data very slow on LTE"). Use the user's wording or a close paraphrase. This is critical for product improvement.
+- connectivity_type: when connectivity issues are mentioned, specify "cellular" (mobile data/LTE/5G), "wifi", "both", or "unknown".
+- severity: low | medium | high (only when is_modem_issue=true).
+- after_update: yes | no | unknown (whether issue started after a software/OS update).
+- carrier: Verizon | T-Mobile | AT&T | Optus | ... (carrier name if mentioned) | unknown.
+- device: Pixel 6 | Pixel 7 | Pixel 8 | Pixel 9 | Pixel 10 | unknown.
+
+Output this exact JSON structure only (no markdown, no code block wrapper):
+
+{"post_id":"{{POST_ID}}","is_modem_issue":true|false,"severity":"low|medium|high","symptoms":["symptom1","symptom2"],"issue_descriptions":{"symptom1":"one sentence describing the problem","symptom2":"one sentence for this symptom"},"connectivity_type":"cellular|wifi|both|unknown","after_update":"yes|no|unknown","carrier":"...","device":"...","evidence":["<verbatim sentence1>","<sentence2>"]}
+
+If is_modem_issue is false, omit issue_descriptions or use {}. For each symptom in "symptoms", there must be one entry in "issue_descriptions" with the same key.
+
+---
+INPUT (post_id: {{POST_ID}}):
+---
+{{INPUT_TEXT}}
+---
+OUTPUT (JSON only):
