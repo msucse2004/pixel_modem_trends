@@ -83,20 +83,35 @@ def existing_post_ids(out_path: Path) -> set[str]:
     return seen
 
 
+OLLAMA_TIMEOUT = 600  # seconds (gemma3:27b 등 대형 모델 대응)
+OLLAMA_RETRIES = 2
+
+
 def call_ollama(prompt: str, model: str, log) -> str:
-    """POST to Ollama /api/generate, return full response text."""
-    try:
-        r = requests.post(
-            OLLAMA_URL,
-            json={"model": model, "prompt": prompt, "stream": False},
-            timeout=120,
-        )
-        r.raise_for_status()
-        out = r.json().get("response") or ""
-        return out.strip()
-    except requests.RequestException as e:
-        log.error("Ollama request failed: %s", e)
-        raise
+    """POST to Ollama /api/generate, return full response text. Retries on timeout."""
+    last_err = None
+    for attempt in range(OLLAMA_RETRIES + 1):
+        try:
+            r = requests.post(
+                OLLAMA_URL,
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=OLLAMA_TIMEOUT,
+            )
+            r.raise_for_status()
+            out = r.json().get("response") or ""
+            return out.strip()
+        except requests.exceptions.ReadTimeout as e:
+            last_err = e
+            if attempt < OLLAMA_RETRIES:
+                log.warning("Ollama timeout (attempt %d/%d), retrying in 5s...", attempt + 1, OLLAMA_RETRIES + 1)
+                time.sleep(5)
+            else:
+                log.error("Ollama request failed after %d attempts: %s", OLLAMA_RETRIES + 1, e)
+                raise
+        except requests.RequestException as e:
+            log.error("Ollama request failed: %s", e)
+            raise
+    raise last_err
 
 
 def extract_json_from_response(raw: str) -> dict | None:
