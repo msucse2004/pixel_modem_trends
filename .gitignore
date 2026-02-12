@@ -6,8 +6,11 @@ __pycache__/
 .Python
 *.egg
 
-# Data (regeneratable from PDFs)
-data/
+# Data (regeneratable) - data/pdfs/*.pdf 는 저장소에 포함
+data/text/
+data/parsed/
+data/llm/
+data/out/
 
 # IDE
 .idea/
