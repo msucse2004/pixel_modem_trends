@@ -1,5 +1,6 @@
-# Word cloud from modem-issue evidence text.
-# Input: data/out/posts_modem_long.csv (uses is_modem_issue==TRUE, evidence + title)
+# Word cloud from modem-issue results (modem_issue_summary.csv).
+# Input: data/out/modem_issue_summary.csv (description_1..5, symptom, n_posts)
+#       data/out/posts_modem_long.csv (issue_description) as fallback
 # Output: data/out/modem_wordcloud.png, data/out/modem_wordcloud.pdf
 # Run from project root: Rscript r/plot_wordcloud.R
 
@@ -9,14 +10,15 @@ library(dplyr)
 library(viridis)
 
 # Paths
-if (!file.exists("data/out/posts_modem_long.csv")) {
-  if (file.exists("../data/out/posts_modem_long.csv")) setwd("..")
-  else stop("Run from project root. Missing data/out/posts_modem_long.csv")
+if (!file.exists("data/out/modem_issue_summary.csv")) {
+  if (file.exists("../data/out/modem_issue_summary.csv")) setwd("..")
+  else stop("Run from project root. Missing data/out/modem_issue_summary.csv")
 }
 out_dir <- "data/out"
-input_file <- "data/out/posts_modem_long.csv"
+input_summary <- "data/out/modem_issue_summary.csv"
+input_long <- "data/out/posts_modem_long.csv"
 
-# Config (reference: keywords_analysis plot_wordcloud.R)
+# Config
 max_words <- 200
 top_n <- 200
 width_px <- 1400
@@ -36,34 +38,47 @@ stopwords_en <- c(
   "own", "same", "into", "out", "up", "down", "about", "after", "before", "between"
 )
 
-# Read long CSV
-d <- read_csv(input_file, show_col_types = FALSE)
-d$is_modem_issue <- as.logical(d$is_modem_issue)
+txt <- function(x) ifelse(is.na(x) | nchar(trimws(as.character(x))) == 0, "", as.character(x))
 
-# Only modem-issue rows, one row per post (avoid duplicate evidence)
-modem <- d %>%
-  filter(is_modem_issue == TRUE) %>%
-  distinct(post_id, .keep_all = TRUE)
-
-if (nrow(modem) == 0) {
-  message("No modem-issue posts. Creating placeholder word cloud.")
-  modem <- tibble(
-    evidence_1 = "no modem issue data",
-    evidence_2 = "", evidence_3 = "", title = ""
-  )
+# 1) Primary: modem_issue_summary.csv (description_1..5 + symptom, weighted by n_posts)
+parts <- character(0)
+if (file.exists(input_summary)) {
+  sum_df <- read_csv(input_summary, show_col_types = FALSE)
+  sum_df <- sum_df[sum_df$symptom != "" & !is.na(sum_df$symptom), , drop = FALSE]
+  desc_cols <- grep("^description_[0-9]+$", names(sum_df), value = TRUE)
+  sum_parts <- character(nrow(sum_df))
+  for (i in seq_len(nrow(sum_df))) {
+    descs <- if (length(desc_cols) > 0) {
+      vals <- unlist(sum_df[i, desc_cols])
+      paste(txt(vals), collapse = " ")
+    } else ""
+    sym <- gsub("_", " ", txt(sum_df$symptom[i]))
+    np <- as.integer(sum_df$n_posts[i]); n <- if (is.na(np) || np < 1) 1L else np
+    sum_parts[i] <- paste(descs, paste(rep(sym, n), collapse = " "))
+  }
+  parts <- sum_parts
 }
 
-# Collapse evidence + title into one text per post, then one big string
-txt <- function(x) ifelse(is.na(x) | nchar(trimws(as.character(x))) == 0, "", as.character(x))
-parts <- paste(
-  txt(modem$title),
-  txt(modem$evidence_1),
-  txt(modem$evidence_2),
-  txt(modem$evidence_3),
-  sep = " "
-)
-full_text <- paste(trimws(parts), collapse = " ")
+# 2) Fallback: posts_modem_long issue_description
+if (length(parts) == 0 || all(trimws(parts) == "")) {
+  if (file.exists(input_long)) {
+    d <- read_csv(input_long, show_col_types = FALSE)
+    d$is_modem_issue <- as.logical(d$is_modem_issue)
+    modem <- d %>% filter(is_modem_issue == TRUE, symptom != "none", !is.na(symptom))
+    if (nrow(modem) > 0) {
+      symptom_words <- gsub("_", " ", modem$symptom)
+      parts <- paste(txt(modem$issue_description), symptom_words, sep = " ")
+    }
+  }
+}
+
+full_text <- if (length(parts) > 0) paste(trimws(parts), collapse = " ") else ""
 full_text <- gsub("\\s+", " ", full_text)
+
+if (nchar(trimws(full_text)) == 0) {
+  message("No modem-issue descriptions found. Creating placeholder word cloud.")
+  full_text <- "modem connectivity signal data slow dropped service"
+}
 
 # Tokenize: lowercase, keep letters only, split on non-letters
 full_text <- tolower(full_text)
@@ -84,10 +99,46 @@ freq_tab <- head(freq_tab, top_n)
 freq_vec <- as.integer(freq_tab)
 names(freq_vec) <- names(freq_tab)
 
+# Symptom boost: make symptom names stand out prominently (n_posts * boost)
+# Symptom -> readable label for wordcloud (underscore to space)
+SYMPTOM_LABELS <- c(
+  "slow_data_latency" = "slow data latency",
+  "lost_connectivity" = "lost connectivity",
+  "no_service" = "no service",
+  "stuck_lte" = "stuck lte",
+  "stuck_5g" = "stuck 5g",
+  "roaming_handoff" = "roaming handoff",
+  "low_signal" = "low signal",
+  "missed_calls" = "missed calls"
+)
+SYMPTOM_BOOST <- 60
+if (file.exists(input_summary)) {
+  sum_df <- read_csv(input_summary, show_col_types = FALSE)
+  sum_df <- sum_df[sum_df$symptom != "" & !is.na(sum_df$symptom), , drop = FALSE]
+  for (i in seq_len(nrow(sum_df))) {
+    sym <- txt(sum_df$symptom[i])
+    label <- SYMPTOM_LABELS[sym]
+    if (is.na(label)) label <- gsub("_", " ", tolower(sym))
+    else label <- as.character(label)
+    np <- max(1L, as.integer(sum_df$n_posts[i]), na.rm = TRUE)
+    boost <- np * SYMPTOM_BOOST
+    sym_words <- strsplit(label, "\\s+")[[1]]
+    sym_words <- sym_words[nchar(sym_words) >= 1]
+    for (w in sym_words) {
+      current <- if (w %in% names(freq_vec)) freq_vec[w] else 0
+      freq_vec[w] <- current + boost
+    }
+  }
+}
+
 if (length(freq_vec) == 0) {
   freq_vec <- c(1, 1, 1, 1)
   names(freq_vec) <- c("modem", "connectivity", "signal", "data")
 }
+
+# Sort again by freq (symptoms should be at top now)
+freq_vec <- sort(freq_vec, decreasing = TRUE)
+freq_vec <- head(freq_vec, top_n)
 
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 ncol <- min(50, length(freq_vec))
