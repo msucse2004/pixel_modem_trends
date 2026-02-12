@@ -18,8 +18,8 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 
 
 def get_default_model() -> str:
-    """Windows: gemma3, Linux: gemma3:27b"""
-    return "gemma3" if platform.system() == "Windows" else "gemma3:27b"
+    """Windows: gemma3:270m (빠른 검증용), Linux: gemma3:27b"""
+    return "gemma3:270m" if platform.system() == "Windows" else "gemma3:27b"
 RATE_LIMIT_SLEEP = 0.2
 
 ALLOWED_SYMPTOMS = {
