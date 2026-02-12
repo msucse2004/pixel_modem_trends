@@ -66,7 +66,7 @@ pixel-modem-trend/
    - 입력: `data/parsed/posts.jsonl`
    - 출력: `data/llm/modem_tags.jsonl` (post_id, is_modem_issue, severity, symptoms, **issue_descriptions**, after_update, carrier, device, evidence)
    - **본문 전체**(최대 5000자)와 모뎀 관련 댓글을 분석해 모뎀 이슈를 최대한 타게팅. 각 증상별로 **issue_descriptions**(유저가 겪는 문제 한 줄 설명) 추출 → 다음 모델 개선용.
-   - 옵션: `--model llama3.2:3b`, `--max_posts N`, `--only_subreddits GooglePixel,Pixel6`, **`--retag`** (기존 결과 무시하고 전부 재태깅, issue_descriptions 채우기)
+   - 옵션: `--model <모델명>` (기본: Windows=gemma3, Linux=gemma3:27b), `--max_posts N`, `--only_subreddits GooglePixel,Pixel6`, **`--retag`** (기존 결과 무시하고 전부 재태깅)
    - 이미 출력에 있는 post_id는 건너뜀 (재개 안전). 프롬프트: `scripts/prompts/modem_prompt.txt`
 
 5. **R용 long CSV 및 이슈 요약 생성**

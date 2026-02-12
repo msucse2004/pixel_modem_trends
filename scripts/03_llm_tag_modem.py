@@ -5,6 +5,7 @@ Resume-safe (skips post_id already in output). Windows-friendly, no external API
 """
 import argparse
 import json
+import platform
 import re
 import time
 from pathlib import Path
@@ -14,6 +15,11 @@ import requests
 from _utils import get_logger, project_root
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
+
+
+def get_default_model() -> str:
+    """Windows: gemma3, Linux: gemma3:27b"""
+    return "gemma3" if platform.system() == "Windows" else "gemma3:27b"
 RATE_LIMIT_SLEEP = 0.2
 
 ALLOWED_SYMPTOMS = {
@@ -177,11 +183,12 @@ def normalize_record(parsed: dict, post_id: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tag posts with modem issue signals via local Ollama.")
-    parser.add_argument("--model", default="llama3.1:8b", help="Ollama model name")
+    parser.add_argument("--model", default=None, help="Ollama model name (default: gemma3 on Windows, gemma3:27b on Linux)")
     parser.add_argument("--max_posts", type=int, default=None, help="Max number of posts to process")
     parser.add_argument("--only_subreddits", type=str, default=None, help="Comma-separated subreddit names to include")
     parser.add_argument("--retag", action="store_true", help="Re-tag all posts (clear output and run; use to get issue_descriptions)")
     args = parser.parse_args()
+    args.model = args.model or get_default_model()
 
     root = project_root()
     log = get_logger("llm_tag_modem")
