@@ -124,7 +124,7 @@ cd c:\workspace\pixel-modem-trend
 |------|------|
 | 가상환경 생성 | `python -m venv .venv` |
 | 가상환경 활성화 | `.\.venv\Scripts\Activate.ps1` |
-| Python 의존성 설치 | `pip install pdfplumber requests` |
+| Python 의존성 설치 | `pip install -r requirements.txt` |
 | Step 1 (PDF→텍스트) | `python scripts/01_pdf_to_text.py` |
 | Step 2 (파싱) | `python scripts/02_parse_posts.py` |
 | Step 3 (Ollama 태깅) | `python scripts/03_llm_tag_modem.py` |
@@ -142,6 +142,31 @@ cd c:\workspace\pixel-modem-trend
 - **Python 3** (PDF 추출: `pypdf` 또는 `pdfplumber`, 필요 시 `ollama` 클라이언트)
 - **Ollama** (이미 설치됨, 로컬 LLM용)
 - **(선택) R** + ggplot2 등 (R로 차트 생성할 경우)
+
+---
+
+## 다른 워크스테이션에서 처음 설정하기
+
+> `.venv`는 Git에 포함하지 않습니다 (OS/경로 종속, 용량 큼). 새 PC에서는 아래 순서로 환경을 만듭니다.
+
+```powershell
+# 1) 저장소 클론
+git clone https://github.com/msucse2004/pixel_modem_trends.git
+cd pixel_modem_trends
+
+# 2) 가상환경 생성 및 패키지 설치
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1   # Windows
+pip install -r requirements.txt
+
+# 3) data 폴더 구조 (스크립트가 자동 생성하지만 미리 만들어도 됨)
+mkdir -Force data\pdfs, data\text, data\parsed, data\llm, data\out | Out-Null
+
+# 4) PDF를 data\pdfs에 넣고 파이프라인 실행
+.\run_all.ps1
+```
+
+**필수 사전 설치:** Python 3, Ollama (모뎀 태깅용), (선택) R
 
 ---
 
