@@ -11,11 +11,13 @@ pixel-modem-trend/
 ├── data/
 │   ├── pdfs/      # 수동 저장한 Reddit PDF 원본
 │   ├── text/      # PDF에서 추출한 텍스트
-│   ├── parsed/    # 파싱된 모뎀 이슈 레코드 (구조화 데이터)
-│   ├── llm/       # Ollama로 보강/정규화한 결과
-│   └── out/       # 최종 차트·리포트 출력
-├── scripts/       # 파이프라인 스크립트 (Python 등)
-├── r/             # R 스크립트 (차트 생성용, 선택)
+│   ├── parsed/    # 파싱된 게시글 (posts.jsonl, posts_summary.csv)
+│   ├── llm/       # Ollama 모뎀 태깅 결과 (modem_tags.jsonl)
+│   └── out/       # 최종 차트·리포트·워드클라우드 출력
+├── scripts/       # 파이프라인 스크립트 (Python 01~05)
+├── r/             # R 스크립트 (차트·워드클라우드)
+├── run_all.ps1    # Windows 전체 실행
+├── run_all.sh     # Linux/macOS 전체 실행
 └── README.md
 ```
 
@@ -25,11 +27,12 @@ pixel-modem-trend/
 
 | 단계 | 설명 | 입력 | 출력 |
 |------|------|------|------|
-| **1** | Reddit PDF를 `data/pdfs`에 넣기 | (수동) | `data/pdfs/*.pdf` |
-| **2** | PDF → 텍스트 추출 | `data/pdfs/` | `data/text/` |
-| **3** | 텍스트에서 모뎀 이슈 파싱 (날짜, 모델, 증상 등) | `data/text/` | `data/parsed/` |
-| **4** | (선택) Ollama로 엔티티 정규화·분류 | `data/parsed/` | `data/llm/` |
-| **5** | 트렌드 집계 및 차트 생성 | `data/parsed/` 또는 `data/llm/` | `data/out/` |
+| **01** | PDF → 텍스트 추출 | `data/pdfs/` | `data/text/` |
+| **02** | 텍스트 → 게시글 파싱 (날짜, URL, 본문 등) | `data/text/` | `data/parsed/` |
+| **03** | Ollama로 모뎀 이슈 태깅·분류 | `data/parsed/` | `data/llm/` |
+| **04** | long CSV 및 이슈 요약 생성 | `data/parsed/`, `data/llm/` | `data/out/` |
+| **05** | 이슈별 PDF 복사 | `data/parsed/`, `data/out/` | `data/out/by_issue/` |
+| **R** | 차트·워드클라우드 생성 | `data/out/` | `data/out/*.png`, `*.pdf` |
 
 ---
 
@@ -66,7 +69,8 @@ pixel-modem-trend/
    - 입력: `data/parsed/posts.jsonl`
    - 출력: `data/llm/modem_tags.jsonl` (post_id, is_modem_issue, severity, symptoms, **issue_descriptions**, after_update, carrier, device, evidence)
    - **본문 전체**(최대 5000자)와 모뎀 관련 댓글을 분석해 모뎀 이슈를 최대한 타게팅. 각 증상별로 **issue_descriptions**(유저가 겪는 문제 한 줄 설명) 추출 → 다음 모델 개선용.
-   - 옵션: `--model <모델명>` (기본: Windows=gemma3, Linux=gemma3:27b), `--max_posts N`, `--only_subreddits GooglePixel,Pixel6`, **`--retag`** (기존 결과 무시하고 전부 재태깅)
+   - 옵션: `--model <모델명>` (기본: Windows=gemma3:270m, Linux=gemma3:27b), `--max_posts N`, `--only_subreddits GooglePixel,Pixel6`, **`--retag`** (기존 결과 무시하고 전부 재태깅)
+   - Windows는 빠른 검증용 작은 모델, Linux는 대형 모델로 품질 높게 실행 권장
    - 이미 출력에 있는 post_id는 건너뜀 (재개 안전). 프롬프트: `scripts/prompts/modem_prompt.txt`
 
 5. **R용 long CSV 및 이슈 요약 생성**
@@ -87,32 +91,57 @@ pixel-modem-trend/
    - 입력: `data/parsed/posts.jsonl`, `data/out/posts_modem_long.csv`
    - 출력: **`data/out/by_issue/{symptom}/`** — `modem_issues_report.txt`에 분류된 각 이슈 이름으로 폴더 생성, 해당 이슈에 해당하는 원본 PDF 복사
 
-7. **R로 트렌드 차트 생성**
+7. **R로 트렌드 차트·워드클라우드 생성**
    ```powershell
    Rscript r/install_packages.R
    Rscript r/plot_trends.R
+   Rscript r/plot_wordcloud.R
    ```
-   - 입력: `data/out/posts_modem_long.csv` (Step 4 결과)
+   - 입력: `data/out/posts_modem_long.csv`, `data/out/modem_issue_summary.csv`
    - 출력 (모두 `data/out/`):
      - `modem_trend_monthly.png` — 월별 모뎀 이슈 총건수 (symptom "none" 제외), 선+점
      - `modem_symptoms_monthly.png` — 월별 증상별 추이 (총건수 상위 6개 증상), 증상별 라인
+     - `modem_wordcloud.png`, `modem_wordcloud.pdf` — 모뎀 이슈 요약 워드클라우드 (증상 강조)
    - 누락 월은 0으로 채움. `created_month`(Asia/Seoul 기준) 사용.
-   - 필요 패키지: ggplot2, dplyr, readr, lubridate (`install_packages.R`로 설치)
+   - 필요 패키지: ggplot2, dplyr, readr, lubridate, wordcloud, viridis (`install_packages.R`로 설치)
 
-최종 차트·CSV 등은 `data\out`에서 확인합니다.
+### data/out 출력 파일 요약
+
+| 파일 | 설명 |
+|------|------|
+| `posts_modem_long.csv` | long 포맷 (post_id, symptom, issue_description 등) |
+| `modem_issue_summary.csv` | 증상별 건수 + 예시 설명 5개 |
+| `modem_issues_report.txt` | 이슈 요약 리포트 |
+| `modem_trend_monthly.png` | 월별 모뎀 이슈 총건수 차트 |
+| `modem_symptoms_monthly.png` | 월별 증상별 추이 차트 |
+| `modem_wordcloud.png` / `.pdf` | 모뎀 이슈 워드클라우드 |
+| `by_issue/{symptom}/` | 증상별 원본 PDF 복사본 |
 
 ---
 
-## 한 번에 실행 (run_all.ps1)
+## 한 번에 실행
 
-Windows에서 파이프라인 전체를 한 번에 실행:
+### Windows (PowerShell)
 
 ```powershell
 cd c:\workspace\pixel-modem-trend
 .\run_all.ps1
 ```
 
-동작: (1) `.venv`가 있으면 활성화 (2) Python 01→02→03→04→05 순서 실행 (3) R로 패키지 설치 후 차트·워드클라우드 생성 (4) 최종 출력 파일 경로 및 `by_issue` 폴더 요약 출력.
+### Linux / macOS (Bash)
+
+```bash
+cd /path/to/pixel-modem-trend
+chmod +x run_all.sh
+./run_all.sh
+```
+
+### 동작
+
+1. `.venv`가 있으면 활성화 (Windows: `Scripts\Activate.ps1`, Linux: `bin/activate`)
+2. Python 01→02→03→04→05 순서 실행
+3. R로 패키지 설치 후 `plot_trends.R`, `plot_wordcloud.R` 실행
+4. 최종 출력 파일 경로 및 `by_issue` 폴더 요약 출력
 
 ---
 
@@ -122,24 +151,26 @@ cd c:\workspace\pixel-modem-trend
 
 | 목적 | 명령 |
 |------|------|
-| 가상환경 생성 | `python -m venv .venv` |
-| 가상환경 활성화 | `.\.venv\Scripts\Activate.ps1` |
+| 가상환경 생성 | `python -m venv .venv` (또는 `python3 -m venv .venv`) |
+| 가상환경 활성화 (Windows) | `.\.venv\Scripts\Activate.ps1` |
+| 가상환경 활성화 (Linux) | `source .venv/bin/activate` |
 | Python 의존성 설치 | `pip install -r requirements.txt` |
-| Step 1 (PDF→텍스트) | `python scripts/01_pdf_to_text.py` |
-| Step 2 (파싱) | `python scripts/02_parse_posts.py` |
-| Step 3 (Ollama 태깅) | `python scripts/03_llm_tag_modem.py` |
-| Step 3 (3개만 테스트) | `python scripts/03_llm_tag_modem.py --max_posts 3` |
-| Step 4 (long CSV) | `python scripts/04_build_csv_long.py` |
-| Step 5 (이슈별 PDF 복사) | `python scripts/05_copy_pdfs_by_issue.py` |
+| Step 01 (PDF→텍스트) | `python scripts/01_pdf_to_text.py` |
+| Step 02 (파싱) | `python scripts/02_parse_posts.py` |
+| Step 03 (Ollama 태깅) | `python scripts/03_llm_tag_modem.py` |
+| Step 03 (3개만 테스트) | `python scripts/03_llm_tag_modem.py --max_posts 3` |
+| Step 04 (long CSV) | `python scripts/04_build_csv_long.py` |
+| Step 05 (이슈별 PDF 복사) | `python scripts/05_copy_pdfs_by_issue.py` |
 | R 패키지 설치 | `Rscript r/install_packages.R` |
 | R 차트 생성 | `Rscript r/plot_trends.R` |
-| 출력 파일 확인 | `dir data\out` |
+| R 워드클라우드 | `Rscript r/plot_wordcloud.R` |
+| 출력 파일 확인 | `dir data\out` (Windows) / `ls data/out` (Linux) |
 
 ---
 
 ## 사전 요구사항 (로컬만)
 
-- **Python 3** (PDF 추출: `pypdf` 또는 `pdfplumber`, 필요 시 `ollama` 클라이언트)
+- **Python 3** (PDF: pdfplumber, API: requests — `pip install -r requirements.txt`)
 - **Ollama** (이미 설치됨, 로컬 LLM용)
 - **(선택) R** + ggplot2 등 (R로 차트 생성할 경우)
 
@@ -149,6 +180,8 @@ cd c:\workspace\pixel-modem-trend
 
 > `.venv`는 Git에 포함하지 않습니다 (OS/경로 종속, 용량 큼). 새 PC에서는 아래 순서로 환경을 만듭니다.
 
+### Windows
+
 ```powershell
 # 1) 저장소 클론
 git clone https://github.com/msucse2004/pixel_modem_trends.git
@@ -156,14 +189,27 @@ cd pixel_modem_trends
 
 # 2) 가상환경 생성 및 패키지 설치
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1   # Windows
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 3) data 폴더 구조 (스크립트가 자동 생성하지만 미리 만들어도 됨)
-mkdir -Force data\pdfs, data\text, data\parsed, data\llm, data\out | Out-Null
-
-# 4) PDF를 data\pdfs에 넣고 파이프라인 실행
+# 3) PDF를 data\pdfs에 넣고 파이프라인 실행
 .\run_all.ps1
+```
+
+### Linux / macOS
+
+```bash
+# 1) 저장소 클론
+git clone https://github.com/msucse2004/pixel_modem_trends.git
+cd pixel_modem_trends
+
+# 2) 가상환경 생성 및 패키지 설치
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3) PDF를 data/pdfs에 넣고 파이프라인 실행
+./run_all.sh
 ```
 
 **필수 사전 설치:** Python 3, Ollama (모뎀 태깅용), (선택) R

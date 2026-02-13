@@ -34,6 +34,90 @@ NOISE_NAV = ("로그인", "메인 콘텐츠로 바로가기")
 AD_MARKERS = ("홍보 광고", "더 알아보기")
 SEP_BODY_COMMENTS = ("댓글", "답글", "Comment", "Comments")
 
+# Device model patterns (order: longer/more specific first)
+DEVICE_PATTERNS = [
+    (r"Pixel\s+10\s+Pro\s+Fold", "Pixel 10 Pro Fold"),
+    (r"Pixel\s+10\s+Pro\s+XL", "Pixel 10 Pro XL"),
+    (r"Pixel\s+10\s+Pro", "Pixel 10 Pro"),
+    (r"(?:Pixel\s+)?10\s*Pro\s*Fold", "Pixel 10 Pro Fold"),
+    (r"Pixel\s+10a", "Pixel 10a"),
+    (r"Pixel\s+10\b", "Pixel 10"),
+    (r"Pixel\s+9\s+Pro\s+XL", "Pixel 9 Pro XL"),
+    (r"Pixel\s+9\s+Pro\s+Fold", "Pixel 9 Pro Fold"),
+    (r"Pixel\s+9\s+Pro", "Pixel 9 Pro"),
+    (r"(?:Pixel\s+)?9\s*Pro\s*XL", "Pixel 9 Pro XL"),
+    (r"(?:Pixel\s+)?9\s*Pro\b", "Pixel 9 Pro"),
+    (r"Pixel\s+9a", "Pixel 9a"),
+    (r"Pixel\s+9\b", "Pixel 9"),
+    (r"Pixel\s+8\s+Pro", "Pixel 8 Pro"),
+    (r"(?:Pixel\s+)?8\s*Pro\b", "Pixel 8 Pro"),
+    (r"Pixel\s+8a", "Pixel 8a"),
+    (r"Pixel\s+8\b", "Pixel 8"),
+    (r"Pixel\s+7a", "Pixel 7a"),
+    (r"Pixel\s+7\b", "Pixel 7"),
+    (r"Pixel\s+6a", "Pixel 6a"),
+    (r"Pixel\s+6\b", "Pixel 6"),
+    (r"Pixel\s+5", "Pixel 5"),
+    (r"Pixel\s+4a", "Pixel 4a"),
+    (r"Pixel\s+4\b", "Pixel 4"),
+]
+
+# Carrier patterns (case-insensitive)
+CARRIER_PATTERNS = [
+    r"Verizon", r"T-Mobile", r"T-Mo\b", r"AT&T", r"Sprint",
+    r"Google\s*Fi", r"Mint\s*Mobile", r"Visible", r"US\s*Cellular",
+    r"Rogers", r"Bell\s*(?:Canada)?", r"Telus", r"Freedom\s*Mobile",
+    r"Vodafone", r"EE\b", r"O2\b", r"Three\s*(?:UK)?", r"Virgin\s*(?:Mobile)?",
+    r"Optus", r"Telstra", r"Vodafone\s*AU",
+    r"Jio", r"Airtel", r"Vodafone\s*India",
+    r"SoftBank", r"NTT\s*Docomo", r"au\b", r"KDDI",
+    r"Orange", r"Free\s*Mobile", r"SFR", r"Bouygues",
+]
+
+# Region/country patterns (case-insensitive)
+REGION_PATTERNS = [
+    (r"\b(US|USA|U\.S\.|United\s*States)\b", "US"),
+    (r"\b(UK|U\.K\.|United\s*Kingdom)\b", "UK"),
+    (r"\bCanada\b", "Canada"),
+    (r"\bAustralia\b", "Australia"),
+    (r"\bIndia\b", "India"),
+    (r"\bGermany\b", "Germany"),
+    (r"\bFrance\b", "France"),
+    (r"\bJapan\b", "Japan"),
+    (r"\bEurope\b", "Europe"),
+    (r"\bEU\b", "Europe"),
+    (r"\bKorea\b", "Korea"),
+    (r"\bBrazil\b", "Brazil"),
+    (r"\bMexico\b", "Mexico"),
+]
+
+
+def extract_device(text: str) -> str:
+    """Extract first mentioned Pixel device model from text."""
+    for pattern, name in DEVICE_PATTERNS:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            return name
+    return ""
+
+
+def extract_carrier(text: str) -> str:
+    """Extract first mentioned carrier from text."""
+    for pattern in CARRIER_PATTERNS:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            return m.group(0).strip()
+    return ""
+
+
+def extract_region(text: str) -> str:
+    """Extract first mentioned region/country from text."""
+    for pattern, label in REGION_PATTERNS:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            return label
+    return ""
+
 
 def find_first_reddit_url(text: str) -> tuple[str, str, str] | None:
     """Return (url, post_id, subreddit) for first reddit post URL, else None."""
@@ -364,6 +448,11 @@ def parse_one_txt(txt_path: Path, root: Path) -> dict | None:
     body_text, comments_text = split_body_and_comments(cleaned, url_line_idx)
 
     raw_text_cleaned = (body_text + "\n\n" + comments_text).strip()
+    search_text = (title + "\n" + raw_text_cleaned)
+
+    device = extract_device(search_text)
+    region = extract_region(search_text)
+    carrier = extract_carrier(search_text)
 
     return {
         "post_id": post_id,
@@ -378,6 +467,9 @@ def parse_one_txt(txt_path: Path, root: Path) -> dict | None:
         "body_text": body_text,
         "comments_text": comments_text,
         "raw_text_cleaned": raw_text_cleaned,
+        "device": device,
+        "region": region,
+        "carrier": carrier,
     }
 
 
@@ -394,7 +486,7 @@ def main() -> None:
         (output_dir / "posts.jsonl").write_text("", encoding="utf-8")
         with open(output_dir / "posts_summary.csv", "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["post_id", "url", "title", "subreddit", "created_at_local", "created_date", "created_month", "source_file"])
+            w.writerow(["post_id", "url", "title", "subreddit", "created_at_local", "created_date", "created_month", "source_file", "device", "region", "carrier"])
         print("Summary: 0 posts parsed. Wrote empty posts.jsonl and posts_summary.csv.")
         return
 
@@ -415,7 +507,7 @@ def main() -> None:
         for rec in posts:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
-    summary_cols = ["post_id", "url", "title", "subreddit", "created_at_local", "created_date", "created_month", "source_file"]
+    summary_cols = ["post_id", "url", "title", "subreddit", "created_at_local", "created_date", "created_month", "source_file", "device", "region", "carrier"]
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=summary_cols, extrasaction="ignore")
         w.writeheader()

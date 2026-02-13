@@ -12,7 +12,7 @@ from _utils import get_logger, project_root
 LONG_COLUMNS = [
     "post_id", "subreddit", "created_at_local", "created_date", "created_month",
     "title", "url", "is_modem_issue", "severity", "symptom", "issue_description",
-    "connectivity_type", "after_update", "carrier", "device",
+    "connectivity_type", "after_update", "carrier", "device", "region",
     "evidence_1", "evidence_2", "evidence_3",
 ]
 
@@ -73,6 +73,15 @@ def build_long_rows(posts: dict[str, dict], tags: dict[str, dict]) -> list[dict]
         e3 = evidence[2] if len(evidence) > 2 else ""
         issue_descriptions = tag.get("issue_descriptions") or {}
 
+        tag_carrier = (tag.get("carrier") or "").strip()
+        tag_device = (tag.get("device") or "").strip()
+        post_carrier = (post.get("carrier") or "").strip()
+        post_device = (post.get("device") or "").strip()
+        post_region = (post.get("region") or "").strip()
+        carrier = tag_carrier if tag_carrier and tag_carrier.lower() != "unknown" else post_carrier or "unknown"
+        device = tag_device if tag_device and tag_device.lower() != "unknown" else post_device or "unknown"
+        region = post_region or "unknown"
+
         for symptom in symptoms:
             issue_desc = (issue_descriptions.get(symptom) or "").strip() if isinstance(issue_descriptions, dict) else ""
             rows.append({
@@ -89,8 +98,9 @@ def build_long_rows(posts: dict[str, dict], tags: dict[str, dict]) -> list[dict]
                 "issue_description": issue_desc[:500],
                 "connectivity_type": tag.get("connectivity_type") or "unknown",
                 "after_update": tag.get("after_update") or "unknown",
-                "carrier": tag.get("carrier") or "unknown",
-                "device": tag.get("device") or "unknown",
+                "carrier": carrier,
+                "device": device,
+                "region": region,
                 "evidence_1": e1,
                 "evidence_2": e2,
                 "evidence_3": e3,
