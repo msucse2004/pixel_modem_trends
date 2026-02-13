@@ -103,6 +103,7 @@ pixel-modem-trend/
      - `modem_trend_monthly.png` — 월별 모뎀 이슈 총건수 (symptom "none" 제외), 선+점
      - `modem_symptoms_monthly.png` — 월별 증상별 추이 (총건수 상위 6개 증상), 증상별 라인
      - `modem_wordcloud.png`, `modem_wordcloud.pdf` — 모뎀 이슈 요약 워드클라우드 (증상 강조)
+     - `modem_issue_by_symptom.png` — 이슈별 건수 히스토그램
      - `modem_issue_by_device.png` — 증상별 디바이스 모델 히스토그램
      - `modem_issue_by_region.png` — 증상별 지역 히스토그램
    - 누락 월은 0으로 채움. `created_month`(Asia/Seoul 기준) 사용.
@@ -118,6 +119,7 @@ pixel-modem-trend/
 | `modem_trend_monthly.png` | 월별 모뎀 이슈 총건수 차트 |
 | `modem_symptoms_monthly.png` | 월별 증상별 추이 차트 |
 | `modem_wordcloud.png` / `.pdf` | 모뎀 이슈 워드클라우드 |
+| `modem_issue_by_symptom.png` | 이슈별 건수 히스토그램 |
 | `modem_issue_by_device.png` | 증상별 디바이스 히스토그램 |
 | `modem_issue_by_region.png` | 증상별 지역 히스토그램 |
 | `by_issue/{symptom}/` | 증상별 원본 PDF 복사본 |
