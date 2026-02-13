@@ -96,12 +96,15 @@ pixel-modem-trend/
    Rscript r/install_packages.R
    Rscript r/plot_trends.R
    Rscript r/plot_wordcloud.R
+   Rscript r/plot_issue_histograms.R
    ```
    - 입력: `data/out/posts_modem_long.csv`, `data/out/modem_issue_summary.csv`
    - 출력 (모두 `data/out/`):
      - `modem_trend_monthly.png` — 월별 모뎀 이슈 총건수 (symptom "none" 제외), 선+점
      - `modem_symptoms_monthly.png` — 월별 증상별 추이 (총건수 상위 6개 증상), 증상별 라인
      - `modem_wordcloud.png`, `modem_wordcloud.pdf` — 모뎀 이슈 요약 워드클라우드 (증상 강조)
+     - `modem_issue_by_device.png` — 증상별 디바이스 모델 히스토그램
+     - `modem_issue_by_region.png` — 증상별 지역 히스토그램
    - 누락 월은 0으로 채움. `created_month`(Asia/Seoul 기준) 사용.
    - 필요 패키지: ggplot2, dplyr, readr, lubridate, wordcloud, viridis (`install_packages.R`로 설치)
 
@@ -115,6 +118,8 @@ pixel-modem-trend/
 | `modem_trend_monthly.png` | 월별 모뎀 이슈 총건수 차트 |
 | `modem_symptoms_monthly.png` | 월별 증상별 추이 차트 |
 | `modem_wordcloud.png` / `.pdf` | 모뎀 이슈 워드클라우드 |
+| `modem_issue_by_device.png` | 증상별 디바이스 히스토그램 |
+| `modem_issue_by_region.png` | 증상별 지역 히스토그램 |
 | `by_issue/{symptom}/` | 증상별 원본 PDF 복사본 |
 
 ---
@@ -164,6 +169,7 @@ chmod +x run_all.sh
 | R 패키지 설치 | `Rscript r/install_packages.R` |
 | R 차트 생성 | `Rscript r/plot_trends.R` |
 | R 워드클라우드 | `Rscript r/plot_wordcloud.R` |
+| R 이슈별 히스토그램 | `Rscript r/plot_issue_histograms.R` |
 | 출력 파일 확인 | `dir data\out` (Windows) / `ls data/out` (Linux) |
 
 ---

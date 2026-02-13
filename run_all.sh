@@ -41,11 +41,13 @@ if command -v Rscript &>/dev/null; then
     Rscript r/install_packages.R || true
     Rscript r/plot_trends.R || true
     Rscript r/plot_wordcloud.R || true
+    Rscript r/plot_issue_histograms.R || true
 else
     echo "Rscript not in PATH. Install R and add to PATH, then run:"
     echo "  Rscript r/install_packages.R"
     echo "  Rscript r/plot_trends.R"
     echo "  Rscript r/plot_wordcloud.R"
+    echo "  Rscript r/plot_issue_histograms.R"
 fi
 
 # 4) Print final output file paths

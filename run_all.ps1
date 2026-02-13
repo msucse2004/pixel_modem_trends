@@ -48,11 +48,14 @@ if ($rscript) {
     if ($LASTEXITCODE -ne 0) { Write-Host "R plot_trends failed." -ForegroundColor Yellow }
     Rscript r/plot_wordcloud.R
     if ($LASTEXITCODE -ne 0) { Write-Host "R plot_wordcloud failed." -ForegroundColor Yellow }
+    Rscript r/plot_issue_histograms.R
+    if ($LASTEXITCODE -ne 0) { Write-Host "R plot_issue_histograms failed." -ForegroundColor Yellow }
 } else {
     Write-Host "Rscript not in PATH. Install R and add to PATH, then run:" -ForegroundColor Yellow
     Write-Host "  Rscript r/install_packages.R"
     Write-Host "  Rscript r/plot_trends.R"
     Write-Host "  Rscript r/plot_wordcloud.R"
+    Write-Host "  Rscript r/plot_issue_histograms.R"
 }
 
 # 4) Print final output file paths
